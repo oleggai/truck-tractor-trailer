@@ -1,0 +1,294 @@
+services:
+    app.menu_builder:
+        class: ProfileBundle\Menu\MenuBuilder
+        arguments: ["@knp_menu.factory"]
+        tags:
+            - { name: knp_menu.menu_builder, method: createProfileMenu, alias: profile } # The alias is what is used to retrieve the menu
+
+    ttt.security.login_form_authenticator:
+        class: ProfileBundle\Security\LoginFormAuthenticator
+        autowire: true
+
+    ttt.doctrine.hash_password_listener:
+        class: ProfileBundle\Doctrine\HashPasswordListener
+        autowire: true
+        tags:
+            - { name: doctrine.event_subscriber }
+
+    ttt.profile.signup:
+        class: ProfileBundle\Service\SignupService
+        arguments:
+            em: "@doctrine.orm.entity_manager"
+            validator: "@validator"
+            guardHandler: "@security.authentication.guard_handler"
+            loginFormAuthenticator: "@ttt.security.login_form_authenticator"
+            session: "@session"
+
+    ttt.mailer:
+        class: MailerBundle\Service\MailerService
+        arguments:
+            mailer: "@mailer"
+            from_address: "%mailer_from_address%"
+            from_name: "%mailer_from_name%"
+            em: "@doctrine.orm.entity_manager"
+            requestStack: '@request_stack'
+            service_container: '@service_container'
+            mailer_template_builder:  '@ttt.mailer.template.builder'
+
+    ttt.mailer.template.builder:
+        class: MailerBundle\Service\MailTemplateBuilderService
+        arguments:
+            em: "@doctrine.orm.entity_manager"
+            kernel: "@kernel"
+
+    ttt.variable:
+        class: SystemVariablesBundle\Service\VariableService
+        arguments:
+            em: "@doctrine.orm.entity_manager"
+
+    ttt.tractor.filter:
+        class: ListingBundle\Service\TractorFilterService
+        arguments: ["@doctrine.orm.entity_manager", '@ttt.variable', ListingBundle\Entity\Listing\Tractor, '@ttt.listing.attribute']
+
+    ttt.trailer.filter:
+        class: ListingBundle\Service\TrailerFilterService
+        arguments: ["@doctrine.orm.entity_manager", '@ttt.variable', ListingBundle\Entity\Listing\Trailer, '@ttt.listing.attribute']
+
+    ttt.bus.filter:
+        class: ListingBundle\Service\BusFilterService
+        arguments: ["@doctrine.orm.entity_manager", '@ttt.variable', ListingBundle\Entity\Listing\Bus, '@ttt.listing.attribute']
+
+    ttt.filter.listing:
+        class: ListingBundle\Service\FilterListingService
+        autowire: true
+
+    ttt.validator.unique_property_of_entity:
+         class: ProfileBundle\Validator\Constraints\UniquePropertyOfEntityValidator
+         arguments:
+            em: "@doctrine.orm.entity_manager"
+            twig: '@twig'
+         tags:
+            - { name: validator.constraint_validator }
+    ttt.validator.zip_code:
+         class: ListingBundle\Validator\Constraints\ZipCodeValidator
+         tags:
+            - { name: validator.constraint_validator }
+    ttt.validator.property_not_exist_in_db:
+         class: ProfileBundle\Validator\Constraints\PropertyNotExistInDBValidator
+         arguments:
+            em: "@doctrine.orm.entity_manager"
+         tags:
+            - { name: validator.constraint_validator }
+
+    ttt.profile.account:
+        class: ProfileBundle\Service\ProfileAccountService
+        autowire: true
+
+    ttt.profile.role_router:
+        class: ProfileBundle\Service\RoleRouterService
+
+    ttt.upload.multiplelisting:
+        class: ListingBundle\Service\UploadMultipleListingService
+        arguments:
+            em: "@doctrine.orm.entity_manager"
+            phpexcel: "@phpexcel"
+            validator: "@validator"
+            tokenStorage: "@security.token_storage"
+            kernel: "@kernel"
+            attributeService: "@ttt.listing.attribute"
+
+    ttt.listing.attribute:
+        class: ListingBundle\Service\AttributeService
+        arguments:
+            em: "@doctrine.orm.entity_manager"
+
+    ttt.listing.vehicle.type:
+        class: ListingBundle\Service\Vehicle\TypeService
+        autowire: true
+
+    ttt.listing.form.listing:
+        class: ListingBundle\Form\ListingType
+        arguments:
+            type: "@ttt.listing.vehicle.type"
+            attribute: "@ttt.listing.attribute"
+        tags:
+            - { name: form.type }
+
+    ttt.listing.form.optional_tab:
+        class: ListingBundle\Form\OptionalTabType
+        arguments:
+            type: "@ttt.listing.vehicle.type"
+            attribute: "@ttt.listing.attribute"
+        tags:
+            - { name: form.type }
+
+    ttt.listing.transformer.tractor:
+        class: ListingBundle\Service\Transformer\Listing\TractorService
+        arguments:
+            addressTransformer: "@ttt.location.transformer.address"
+            attribute: "@ttt.listing.attribute"
+            entityType: ListingBundle\Entity\Listing\Tractor
+
+
+    ttt.listing.transformer.trailer:
+        class: ListingBundle\Service\Transformer\Listing\TrailerService
+        arguments:
+            addressTransformer: "@ttt.location.transformer.address"
+            attribute: "@ttt.listing.attribute"
+            entityType: ListingBundle\Entity\Listing\Trailer
+
+
+    ttt.listing.meta.vehicle.type.tractor:
+        class: ListingBundle\Meta\Vehicle\Type\Tractor
+
+    ttt.listing.meta.vehicle.type.trailer:
+        class: ListingBundle\Meta\Vehicle\Type\Trailer
+
+
+    ttt.location.transformer.address:
+        class: LocationBundle\Service\Transformer\AddressService
+        arguments:
+            em: "@doctrine.orm.entity_manager"
+
+    ttt.listener:
+        class: ListingBundle\EventListener\ListingStatusListener
+        arguments:
+            container: "@service_container"
+        tags:
+            - { name: doctrine.event_listener, event: preUpdate }
+
+    ttt.security_listing_voter:
+        class: ListingBundle\Security\ListingVoter
+        tags:
+            - { name: security.voter }
+        public: false
+
+    acme_hello.upload_listener:
+        class: FileUploadBundle\EventListener\UploadListener
+        arguments: ["@doctrine.orm.entity_manager"]
+        tags:
+             - { name: kernel.event_listener, event: oneup_uploader.post_upload, method: onUpload }
+
+    acme_demo.validate_file_listener:
+        class: FileUploadBundle\EventListener\ValidateFileListener
+        tags:
+            - { name: kernel.event_listener, event: oneup_uploader.validation, method: onValidate }
+
+    ttt.upload_cat_namer:
+        class: FileUploadBundle\Uploader\Namer\CatNamer
+        arguments: ["@security.token_storage"]
+
+    ttt.file_upload_service:
+        class: FileUploadBundle\Service\FileUploadService
+        arguments:
+            em: "@doctrine.orm.entity_manager"
+            tokenStorage: "@security.token_storage"
+            oneUpManager: "@oneup_uploader.orphanage_manager"
+            kernel: "@kernel"
+
+    ttt.twig_extension:
+        class: WebsiteBundle\Twig\TttExtension
+        public: false
+        tags:
+            - { name: twig.extension }
+
+    ttt.specify_value:
+        class: ListingBundle\Extension\SpecifyValueExtension
+        autowire: true
+        public: false
+        tags:
+            - { name: twig.extension }
+
+    ttt.date_extension:
+        class: ListingBundle\Extension\DateExtension
+        autowire: true
+        public: false
+        tags:
+            - { name: twig.extension }
+
+    ttt.determine_value:
+        class: ListingBundle\Extension\DetermineAttributeValueExtension
+        autowire: true
+        public: false
+        tags:
+            - { name: twig.extension }
+
+    ttt.statistic_service:
+            class: DashboardBundle\Service\StatisticService
+            arguments:
+                em: "@doctrine.orm.entity_manager"
+
+    ttt.security.access_denied_handler:
+        class: ProfileBundle\Security\AccessDeniedHandler
+        autowire: true
+
+    ttt.form_errors_service:
+        class: ListingBundle\Service\FormErrorsService
+
+    ttt.validate_listing_service:
+        class: ListingBundle\Service\ValidateListingService
+        autowire: true
+
+    ttt.offer_service:
+        class: NegotiationsBundle\Service\OfferService
+        autowire: true
+
+    ttt.listing_service:
+        class: ListingBundle\Service\ListingService
+        autowire: true
+
+    ttt.get_financing_service:
+        class: VendorBundle\Service\GetFinancingService
+        autowire: true
+
+    ttt.vendor.form:
+        class: VendorBundle\Service\FormService
+        autowire: true
+
+    ttt.city_state_service:
+        class: LocationBundle\Service\CityStateService
+        autowire: true
+
+    ttt.file_upload_twig_extension:
+        class: FileUploadBundle\Extension\FileUploadExtension
+        public: false
+        tags:
+            - { name: twig.extension }
+
+
+    ttt.form_service:
+            class: WebsiteBundle\Service\FormService
+            autowire: true
+
+    ttt.security_financing_voter:
+        class: VendorBundle\Security\FinancingVoter
+        autowire: true
+        tags:
+            - { name: security.voter }
+        public: false
+
+    ttt.expire_payment_service:
+        class: WebsiteBundle\Service\ExpiredPaymentService
+        autowire: true
+
+    ttt.expire_listing_service:
+        class: WebsiteBundle\Service\ExpiredListingService
+        autowire: true
+
+    ttt.expire_deal_service:
+        class: WebsiteBundle\Service\ExpiredDealService
+        autowire: true
+
+    ttt.expire_offer_service:
+        class: WebsiteBundle\Service\ExpiredOfferService
+        autowire: true
+
+    ttt.creating_entity:
+        class: ListingBundle\Service\CreatingEntityService
+        autowire: true
+
+    ttt.flash:
+        class: FlashModalBundle\Service\FlashModalMessageService
+        arguments:
+          flashService: "@braincrafted_bootstrap.flash"
+          templating: "@templating"
